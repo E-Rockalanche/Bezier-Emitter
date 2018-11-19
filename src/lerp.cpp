@@ -20,11 +20,11 @@ Vec3 bezierC2(const Vec3& p1, const Vec3& p2, const Vec3& p3, const Vec3& p4, fl
 }
 
 Vec3 catmulRom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t) {
-	const Vec3 v2 = -1/2 * p0 + 1/2 * p2;
-	const Vec3 v3 = p0 - 5/2 * p1 + 2 * p2 - 1/2 * p3;
-	const Vec3 v4 = -1/2 * p0 + 3/2 * p1 - 3/2 * p2 + 1/2 * p3;
-
-	return p1 + t*v2 + t*t*v3 + t*t*t*v4;
+	const Vec3 r1 = (p2 - p0) / 2;
+	const Vec3 r2 = (p3 - p1) / 2;
+	const Vec3 v3 = 2 * p1 - 2 * p2 + r1 + r2;
+	const Vec3 v2 = -3 * p1 + 3 * p2 - 2 * r1 - 1 * r2;
+	return p1 + t*r1 + t*t*v2 + t*t*t*v3;
 }
 
 void buildClosedBezierC2(const std::vector<Vec3>& control_points, std::vector<Vec3>& c2_points) {

@@ -105,6 +105,14 @@ Vec3 operator/(const Vec3& v, float scalar) {
 	return result;
 }
 
+Vec3 operator-(const Vec3& v) {
+	Vec3 result;
+	result.x = -v.x;
+	result.y = -v.y;
+	result.z = -v.z;
+	return result;
+}
+
 float& Vec3::operator[](int index) {
 	switch(index) {
 		case 0:
