@@ -1,4 +1,5 @@
 #include "path.hpp"
+#include <iostream>
 
 Path::Path(Type type) {
 	this->type = type;
@@ -25,7 +26,7 @@ void Path::addPoint(Vec3 point) {
 	points.push_back(point);
 }
 
-Vec3 Path::getPoint(int index, float t) {
+Vec3 Path::getPosition(int index, float t) {
 	Vec3 point;
 
 	switch(type) {
@@ -105,43 +106,43 @@ Vec3* Path::data() {
 
 Path::Iterator::Iterator(Path* path) {
 	t = 0;
-	index = 0;
 	my_path = path;
 }
 
 void Path::Iterator::operator+=(float inc) {
 	t += inc;
-	if (t >= 1) {
-		while(t >= 1) {
-			t -= 1;
-		}
-		int index_increment;
-
-		switch(my_path->type) {
-			case LERP:
-			case CATMULROM:
-			default:
-				index_increment = 1;
-				break;
-
-			case BEZC1:
-				index_increment = 2;
-				break;
-
-			case BEZC2:
-				index_increment = 4;
-				break;
-		}
-
-		index = (index + index_increment) % my_path->points.size();
+	while (t >= 1) {
+		t -= 1;
 	}
 }
 
 void Path::Iterator::reset() {
 	t = 0;
-	index = 0;
 }
 
-Vec3 Path::Iterator::getPoint() {
-	return my_path->getPoint(index, t);
+Vec3 Path::Iterator::getPosition() {
+	int num_curve_points;
+
+	switch(my_path->type) {
+		case LERP:
+		case CATMULROM:
+		default:
+			num_curve_points = 1;
+			break;
+
+		case BEZC1:
+			num_curve_points = 2;
+			break;
+
+		case BEZC2:
+			num_curve_points = 3;
+			break;
+	}
+
+	float path_position = t * my_path->points.size() / num_curve_points;
+
+	int path_index = (int)path_position;
+	float inner_t = path_position - path_index;
+
+	return my_path->getPosition(path_index, inner_t);
 }

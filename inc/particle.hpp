@@ -1,15 +1,25 @@
 #ifndef PARTICLE_HPP
 #define PARTICLE_HPP
 
+#include "vec3.hpp"
+
 struct Particle {
-	float size;
 	Vec3 position;
 	Vec3 velocity;
-	Vec3 colour;
+	Vec3 acceleration;
+
 	float lifetime;
-	int texture_handle;
-	float u[4];
-	float v[4];
+	float time;
+
+	inline void update(float time) {
+		velocity += time * acceleration;
+		position += time * velocity;
+		this->time += time;
+	}
+
+	inline bool isDead() const {
+		return (time >= lifetime);
+	}
 };
 
 #endif

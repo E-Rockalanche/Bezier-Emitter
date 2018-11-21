@@ -7,10 +7,13 @@ CLEAN := rm obj/*.o $(TARGET)
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o
+$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o obj/emitter.o
 	$(MAKE_EXE)
 	
 obj/main.o: src/main.cpp inc/vec3.hpp
+	$(MAKE_OBJ)
+	
+obj/emitter.o: src/emitter.cpp inc/emitter.hpp
 	$(MAKE_OBJ)
 	
 obj/vec3.o: src/vec3.cpp inc/vec3.hpp

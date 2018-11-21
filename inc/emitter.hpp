@@ -1,26 +1,34 @@
 #ifndef EMITTER_HPP
 #define EMITTER_HPP
 
+#include "particle.hpp"
+#include "path.hpp"
+
 class Emitter {
 public:
-	void setPath(const Path& path);
-	void setPathSpeed(float speed);
-
-	void setTexture(int texture_handle);
-	void setTextureUVs(float* uvs); // 4 coordinates to form a quad
-
-	void setInitialColour(Vec3 colour);
-	void setEndColour(Vec3 colour);
-
-	void set
-
-	void setNumParticles(int particles);
-
-	int getNumParticles();
-	Particle* data();
+	Emitter();
+	void setPath(Path::Iterator it);
+	void render();
+	void update(float time);
 
 private:
+	static const int MAX_PARTICLES = 100;
+
 	std::vector<Particle> particles;
+	int num_particles;
+	Path::Iterator path_iterator;
+	float path_speed;
+	float emission_rate;
+	float emission_time;
+	float min_angle;
+	float max_angle;
+	float velocity;
+	Vec3 colour1;
+	Vec3 colour2;
+	float min_lifetime;
+	float max_lifetime;
+	float size1;
+	float size2;
 };
 
 #endif

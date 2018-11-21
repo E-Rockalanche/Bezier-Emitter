@@ -9,16 +9,18 @@
 #include <GL/glu.h>
 #include "GL/glut.h"
 
+#include "stb_image.h"
 #include "vec3.hpp"
 #include "path.hpp"
-#include "stb_image.h"
+#include "emitter.hpp"
 
 #define SCREENWIDTH 512
 #define SCREENHEIGHT 512
 
 Path path(Path::CATMULROM);
-bool display_path = true;
-bool display_control_points = true;
+bool display_path = false;
+bool display_control_points = false;
+Emitter emitter;
 
 void keyboardInput(unsigned char key, int x, int y) {
 	if (key == 'd') {
@@ -75,15 +77,48 @@ void initializeScene()
   	glEnable(GL_DEPTH_TEST);
   	glEnable(GL_NORMALIZE);
 
-  	path.addPoint(Vec3(-1, 0, -1));
-  	path.addPoint(Vec3(1, 0, -2));
-  	path.addPoint(Vec3(1, 1, -3));
-  	path.addPoint(Vec3(-1, 1, -2));
+  	path.addPoint(Vec3(-10, -5, -20));
+  	path.addPoint(Vec3(10, -10, -25));
+  	path.addPoint(Vec3(10, 10, -30));
+  	path.addPoint(Vec3(0, -5, -40));
+  	path.addPoint(Vec3(-10, 10, -25));
+
+  	emitter.setPath(path.begin());
+}
+
+void renderPath() {
+    glColor3ub(255, 255, 255);
+    glBegin(GL_LINE_STRIP);
+
+    Path::Iterator it = path.begin();
+    int curve_sections = 16;
+    for(int i = 0; i < path.size() * curve_sections; i++) {
+    	const Vec3 p = it.getPosition();
+    	glVertex3f(p.x, p.y, p.z);
+    	it += 1.0 / (path.size() * curve_sections);
+    }
+	const Vec3 p = it.getPosition();
+	glVertex3f(p.x, p.y, p.z);
+
+	glEnd();
+}
+
+void renderControlPoints() {
+    glColor3ub(255, 0, 0);
+    glBegin(GL_POINTS);
+    for(int i = 0; i < path.size(); i++) {
+    	const Vec3& p = path[i];
+    	glVertex3f(p.x, p.y, p.z);
+    }
+	glEnd();
 }
 
 // GLUT callback to handle rendering the scene
-void renderScene(void)
-{
+void renderScene(void) {
+	static float time_increment = 0.001;
+
+	emitter.update(time_increment);
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glMatrixMode(GL_PROJECTION);
@@ -93,39 +128,22 @@ void renderScene(void)
 				   0.1f,    // Near distance
 				   1000.0f);// Far distance
 
-	gluLookAt(0, 0, 3, // Eye position
+	gluLookAt(0, 0, 20, // Eye position
 			  0, 0, 0, // Lookat position
   			  0, 1, 0);// Up vector
 
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
 
-    if (display_control_points) {
-	    glColor3ub(255, 128, 128);
-	    glBegin(GL_LINE_STRIP);
-	    for(int i = 0; i < path.size(); i++) {
-	    	const Vec3& p = path[i];
-	    	glVertex3f(p.x, p.y, p.z);
-	    }
-		const Vec3& p = path[0];
-		glVertex3f(p.x, p.y, p.z);
-		glEnd();
+	if (display_path) {
+		renderPath();
 	}
 
-	if (display_path) {
-	    glColor3ub(128, 128, 255);
-	    glBegin(GL_LINE_STRIP);
-	    Path::Iterator it = path.begin();
-	    int curve_sections = 16;
-	    for(int i = 0; i < path.size() * curve_sections; i++) {
-	    	const Vec3 p = it.getPoint();
-	    	glVertex3f(p.x, p.y, p.z);
-	    	it += 1.0 / curve_sections;
-	    }
-		const Vec3 p = it.getPoint();
-		glVertex3f(p.x, p.y, p.z);
-		glEnd();
+    if (display_control_points) {
+    	renderControlPoints();
 	}
+
+	emitter.render();
 
 	glutSwapBuffers();
 }

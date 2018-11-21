@@ -20,11 +20,10 @@ public:
 		Iterator(Path* path = NULL);
 		void operator+=(float inc);
 		void reset();
-		Vec3 getPoint();
+		Vec3 getPosition();
 
 	private:
 		float t;
-		int index;
 		Path* my_path;
 	};
 
@@ -47,7 +46,7 @@ private:
 	std::vector<Vec3> points;
 	Type type;
 
-	Vec3 getPoint(int index, float t);
+	Vec3 getPosition(int index, float t);
 	Vec3 getLerpPoint(int index, float t);
 	Vec3 getBezierC1Point(int index, float t);
 	Vec3 getBezierC2Point(int index, float t);
