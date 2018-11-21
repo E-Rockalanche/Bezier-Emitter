@@ -13,6 +13,7 @@
 #include "vec3.hpp"
 #include "path.hpp"
 #include "emitter.hpp"
+#include "matrix.hpp"
 
 #define SCREENWIDTH 512
 #define SCREENHEIGHT 512
@@ -21,11 +22,90 @@ Path path(Path::CATMULROM);
 bool display_path = false;
 bool display_control_points = false;
 Emitter emitter;
+float path_speed = 0.5;
+Matrix rotation_matrix;
+int last_mpos[2];
+int cur_mpos[2];
+bool arcball_on = false;
+
+Vec3 camera_pos(0, 0, 50);
+
+Vec3 getArcballVector(int x, int y) {
+	Vec3 point = Vec3((float)x/SCREENWIDTH - 0.5, 0.5 - (float)y/SCREENHEIGHT, 0);
+	
+	float hyp_sqr = point.x*point.x + point.y*point.y;
+	
+	if (hyp_sqr <= 1) {
+		// mouse is inside arcball
+		point.z = std::sqrt(1.0 - hyp_sqr);
+	} else {
+		// mouse is outside arcball
+		point = Vec3::normalize(point);
+	}
+	return point;
+}
+
+void mouseAction(int button, int state, int x, int y) {
+	switch(button) {
+		case GLUT_LEFT_BUTTON:
+			if (state == GLUT_DOWN) {
+				arcball_on = true;
+				last_mpos[0] = cur_mpos[0] = x;
+				last_mpos[1] = cur_mpos[1] = y;
+			} else {
+				arcball_on = false;
+			}
+			break;
+			
+		case 3: // mouse wheel up
+			camera_pos[2] -= 1;
+			break;
+			
+		case 4: // mouse wheel down
+			camera_pos[2] += 1;
+			break;
+			
+		default:
+			arcball_on = false;
+			break;
+	}
+}
+
+void mouseMotion(int x, int y) {
+	if (arcball_on) {
+		cur_mpos[0] = x;
+		cur_mpos[1] = y;
+	}
+}
 
 void keyboardInput(unsigned char key, int x, int y) {
-	if (key == 'd') {
-		display_path = !display_path;
-		display_control_points = !display_control_points;
+	switch(key) {
+		case 'd':
+			display_path = !display_path;
+			display_control_points = !display_control_points;
+			break;
+
+		case '+':
+			path_speed += 0.1;
+			emitter.setPathSpeed(path_speed);
+			break;
+
+		case '-':
+			path_speed -= 0.1;
+			emitter.setPathSpeed(path_speed);
+			break;
+
+		case '1':
+			emitter.setEmissionRate(0.01);
+			break;
+
+		case '2':
+			emitter.setEmissionRate(0.1);
+			break;
+
+		case '3':
+			emitter.setEmissionRate(1.0);
+			break;
 	}
 }
 
@@ -77,13 +157,15 @@ void initializeScene()
   	glEnable(GL_DEPTH_TEST);
   	glEnable(GL_NORMALIZE);
 
-  	path.addPoint(Vec3(-10, -5, -20));
-  	path.addPoint(Vec3(10, -10, -25));
-  	path.addPoint(Vec3(10, 10, -30));
-  	path.addPoint(Vec3(0, -5, -40));
-  	path.addPoint(Vec3(-10, 10, -25));
+  	path.addPoint(Vec3(-10, -5, 10));
+  	path.addPoint(Vec3(10, -10, 5));
+  	path.addPoint(Vec3(10, 10, 0));
+  	path.addPoint(Vec3(0, -5, -10));
+  	path.addPoint(Vec3(-10, 10, 5));
 
-  	emitter.setPath(path.begin());
+  	Path::Iterator it = path.begin();
+  	it.setSpeed(0.5);
+  	emitter.setPath(it);
 }
 
 void renderPath() {
@@ -115,7 +197,7 @@ void renderControlPoints() {
 
 // GLUT callback to handle rendering the scene
 void renderScene(void) {
-	static float time_increment = 0.001;
+	static float time_increment = 0.005;
 
 	emitter.update(time_increment);
 
@@ -128,22 +210,42 @@ void renderScene(void) {
 				   0.1f,    // Near distance
 				   1000.0f);// Far distance
 
-	gluLookAt(0, 0, 20, // Eye position
+	gluLookAt(camera_pos.x, camera_pos.y, camera_pos.z, // Eye position
 			  0, 0, 0, // Lookat position
   			  0, 1, 0);// Up vector
 
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
 
-	if (display_path) {
-		renderPath();
-	}
+    glPushMatrix();
+    {
+		// calculate arcball rotation
+		if (arcball_on && ((last_mpos[0] != cur_mpos[0]) || (last_mpos[1] != cur_mpos[1]))) {
+			Vec3 m1 = getArcballVector(last_mpos[0], last_mpos[1]);
+			Vec3 m2 = getArcballVector(cur_mpos[0], cur_mpos[1]);
+			float angle = 2 * std::acos(std::min(1.0f, Vec3::dotProduct(m1, m2)));
+			Vec3 axis = Vec3::normalize(Vec3::crossProduct(m1, m2));
+			
+			Matrix new_rotation = calcRotationMatrix(angle, axis);
+			rotation_matrix = rotation_matrix * new_rotation;
+			
+			for(int i = 0; i < 2; i++) {
+				last_mpos[i] = cur_mpos[i];
+			}
+		}
 
-    if (display_control_points) {
-    	renderControlPoints();
-	}
+		glMultMatrixf(rotation_matrix.data);
 
-	emitter.render();
+		if (display_path) {
+			renderPath();
+		}
+
+	    if (display_control_points) {
+	    	renderControlPoints();
+		}
+
+		emitter.render();
+	}
 
 	glutSwapBuffers();
 }
@@ -166,6 +268,8 @@ int main(int argc, char* argv[]) {
 	glutIdleFunc(renderScene);
 	glutKeyboardFunc(keyboardInput);
 	glutSpecialFunc(specialKeyboardInput);
+	glutMouseFunc(mouseAction);
+	glutMotionFunc(mouseMotion);
 
 	initializeScene();
 

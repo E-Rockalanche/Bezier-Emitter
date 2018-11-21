@@ -7,7 +7,7 @@ CLEAN := rm obj/*.o $(TARGET)
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o obj/emitter.o
+$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o obj/emitter.o obj/matrix.o
 	$(MAKE_EXE)
 	
 obj/main.o: src/main.cpp inc/vec3.hpp
@@ -23,6 +23,9 @@ obj/path.o: src/path.cpp inc/path.hpp
 	$(MAKE_OBJ)
 	
 obj/lerp.o: src/lerp.cpp inc/lerp.hpp
+	$(MAKE_OBJ)
+	
+obj/matrix.o: src/matrix.cpp inc/matrix.hpp
 	$(MAKE_OBJ)
 
 obj/stb_image.o: src/stb_image.c inc/stb_image.h

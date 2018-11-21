@@ -18,12 +18,17 @@ public:
 	class Iterator {
 	public:
 		Iterator(Path* path = NULL);
+		void setSpeed(float speed);
+		void update(float time);
 		void operator+=(float inc);
+		void setPosition(float t);
 		void reset();
+		Vec3 getPosition(float t);
 		Vec3 getPosition();
-
+		
 	private:
 		float t;
+		float speed;
 		Path* my_path;
 	};
 
@@ -32,6 +37,7 @@ public:
 	Path(Vec3* points, int length, Type type = BEZC2);
 
 	void setType(Type type);
+	void setClosed(bool closed);
 	void addPoint(Vec3 point);
 	void reset();
 	Iterator begin();
@@ -45,6 +51,8 @@ public:
 private:
 	std::vector<Vec3> points;
 	Type type;
+	bool closed;
+	float speed;
 
 	Vec3 getPosition(int index, float t);
 	Vec3 getLerpPoint(int index, float t);

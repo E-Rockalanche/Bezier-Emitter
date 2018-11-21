@@ -1,8 +1,17 @@
-#include "path.hpp"
 #include <iostream>
+#include <cmath>
+
+#include "path.hpp"
+#include "assert.hpp"
+
+float realFmod(float num, float den) {
+	float result = std::fmod(num, den);
+	return (result >= 0) ? result : (den + result);
+}
 
 Path::Path(Type type) {
 	this->type = type;
+	closed = true;
 }
 
 Path::Path(const Path& other) {
@@ -16,6 +25,7 @@ Path::Path(Vec3* points, int length, Type type) {
 		this->points[i] = points[i];
 	}
 	this->type = type;
+	this->closed = closed;
 }
 
 void Path::setType(Type type) {
@@ -89,10 +99,12 @@ Path::Iterator Path::begin() {
 }
 
 Vec3& Path::operator[](int index) {
+	assert(index < points.size(), "Path::operator[] index out of bounds");
 	return points[index];
 }
 
 Vec3 Path::operator[](int index) const {
+	assert(index < points.size(), "Path::operator[] index out of bounds");
 	return points[index];
 }
 
@@ -104,16 +116,37 @@ Vec3* Path::data() {
 	return points.data();
 }
 
+/*
+Path::Iterator
+*/
+
 Path::Iterator::Iterator(Path* path) {
 	t = 0;
 	my_path = path;
+	speed = 0;
+}
+
+void Path::Iterator::setSpeed(float speed) {
+	this->speed = speed;
+}
+
+#define sign(val) (((val) > 0) - ((val) < 0))
+
+void Path::Iterator::update(float time) {
+	static const float EPSILON = 0.0001;
+	Vec3 v0 = getPosition(t);
+	Vec3 v1 = getPosition(realFmod(t + sign(speed) * EPSILON, 1.0));
+	float length = (v1 - v0).length();
+	float cur_rate = length / EPSILON;
+	*this += speed * time / cur_rate;
 }
 
 void Path::Iterator::operator+=(float inc) {
-	t += inc;
-	while (t >= 1) {
-		t -= 1;
-	}
+	t = realFmod(t + inc, 1);
+}
+
+void Path::Iterator::setPosition(float t) {
+	this->t = realFmod(t, 1);
 }
 
 void Path::Iterator::reset() {
@@ -121,6 +154,10 @@ void Path::Iterator::reset() {
 }
 
 Vec3 Path::Iterator::getPosition() {
+	return getPosition(t);
+}
+
+Vec3 Path::Iterator::getPosition(float t) {
 	int num_curve_points;
 
 	switch(my_path->type) {
