@@ -208,7 +208,6 @@ void renderScene(void) {
 			for(int i = 0; i < 2; i++) {
 				last_mpos[i] = cur_mpos[i];
 			}
-
 		}
 
 		// glMultMatrixf(rotation_matrix.data);

@@ -101,7 +101,7 @@ void Emitter::setGravity(Vec3 gravity) {
 
 void Emitter::setWind(Vec3 wind, float drag, float mass) {
 	this->wind = wind;
-	drag_coef = drag;
+	this->drag_coef = drag;
 	this->mass = mass;
 }
 
@@ -110,12 +110,33 @@ void Emitter::setSpawnOffset(Vec3 min_offset, Vec3 max_offset) {
 	this->max_offset = max_offset;
 }
 
+void Emitter::setRotation(Vec3 axis, float angular_velocity, int rotation_groups) {
+	this->rotation_axis = axis;
+	this->angular_velocity = angular_velocity;
+	this->rotation_groups = std::max(0, std::min(rotation_groups, MAX_ROTATION_GROUPS));
+	this->angle = 0;
+}
+
 #define LERP(x, y, t) ((x) + (t) * ((y) - (x)))
 
 void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 	// top left, top right, bottom right, bottom left
 	static const float quad_x[] = { -0.5, 0.5, 0.5, -0.5 };
 	static const float quad_y[] = { 0.5, 0.5, -0.5, -0.5 };
+
+	Vec3 up_vectors[MAX_ROTATION_GROUPS];
+	Vec3 right_vectors[MAX_ROTATION_GROUPS];
+
+	if (rotation_groups) {
+		for(int i = 0; i < rotation_groups; ++i) {
+			Matrix rotation = calcRotationMatrix(angle + 2.0 * M_PI * i / rotation_groups, rotation_axis);
+			up_vectors[i] = Vec3(0, 1, 0) * rotation;
+			right_vectors[i] = Vec3(1, 0, 0) * rotation;
+		}
+	} else {
+		up_vectors[0] = camera_up;
+		right_vectors[0] = camera_right;
+	}
 
 	glBindTexture(GL_TEXTURE_2D, texture_handle);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -142,7 +163,10 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 			float ty = tex_top + (0.5 - quad_y[j]) / (float)v_images;
 			glTexCoord2d(tx, ty);
 
-			Vec3 vertex = p.position + size * (quad_x[j] * camera_right + quad_y[j] * camera_up);
+			Vec3 right = quad_x[j] * right_vectors[p.rotation_group];
+			Vec3 up = quad_y[j] * up_vectors[p.rotation_group];
+
+			Vec3 vertex = p.position + size * (right + up);
 			glVertex3f(vertex.x, vertex.y, vertex.z);
 		}
 	}
@@ -157,6 +181,7 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 void Emitter::update(float time) {
 	path_iterator.update(time);
 	time_since_emission += time;
+	angle += angular_velocity * time;
 
 	static const float wind_pressure_coef = 0.613;
 	bool apply_wind = drag_coef > 0 && mass > 0;
@@ -213,6 +238,7 @@ void Emitter::createParticle() {
 	p.velocity = randomRange(min_velocity, max_velocity) * direction;
 	p.lifetime = randomRange(min_lifetime, max_lifetime);
 	p.time = 0;
+	p.rotation_group = std::rand() % std::max(1, rotation_groups);
 }
 
 bool Emitter::loadFromFile(std::string filename, std::string path){
@@ -278,6 +304,12 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> drag_coef;
 			} else if (var == "mass") {
 				fin >> mass;
+			} else if (var == "axis") {
+				fin >> rotation_axis;
+			} else if (var == "angular_vel") {
+				fin >> angular_velocity;
+			} else if (var == "rot_groups") {
+				fin >> rotation_groups;
 			} else if (var == "rate") {
 				fin >> emission_rate;
 			} else if (var == "max") {

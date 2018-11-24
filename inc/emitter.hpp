@@ -2,6 +2,7 @@
 #define EMITTER_HPP
 
 #include "path.hpp"
+#include "matrix.hpp"
 
 class Emitter {
 public:
@@ -18,6 +19,7 @@ public:
 	void setTextureAtlas(int handle, int images, int h_images);
 	void setGravity(Vec3 gravity);
 	void setWind(Vec3 wind, float drag, float mass);
+	void setRotation(Vec3 axis, float angular_speed, int rotation_groups);
 
 	bool loadFromFile(std::string filename, std::string path = "");
 	void render(Vec3 camera_up = Vec3(0, 1, 0), Vec3 camera_right = Vec3(1, 0, 0));
@@ -26,6 +28,8 @@ public:
 
 private:
 	static const int MAX_PARTICLES = 256;
+	// static const int MAX_ROTATION_GROUPS = 16;
+	#define MAX_ROTATION_GROUPS 16
 
 	struct Particle {
 		Vec3 position;
@@ -33,6 +37,8 @@ private:
 
 		float lifetime;
 		float time;
+
+		int rotation_group;
 	};
 
 	std::vector<Particle> particles;
@@ -47,6 +53,11 @@ private:
 	Vec3 wind;
 	float drag_coef;
 	float mass;
+
+	float angular_velocity;
+	Vec3 rotation_axis;
+	float angle;
+	int rotation_groups;
 
 	// random initial variables
 
