@@ -1,0 +1,18 @@
+# snow emitter
+
+max 128
+rate 1
+
+grav 0 -0.1 0
+wind -0.2 0 0
+mass 0.1
+drag 2
+
+lif 20
+
+size 0.2
+
+col 1 1 1
+
+min_offset -5 5 -5
+max_offset 5 5 5

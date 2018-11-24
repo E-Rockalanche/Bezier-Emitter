@@ -9,10 +9,6 @@
 #include <GL/glu.h>
 #include "GL/glut.h"
 
-#if(OS == windows)
-	#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-
 #include "stb_image.h"
 #include "vec3.hpp"
 #include "path.hpp"
@@ -35,14 +31,6 @@ bool arcball_on = false;
 Vec3 camera_pos(0, 0, 50);
 Vec3 camera_up(0, 1, 0);
 Vec3 camera_right(1, 0, 0);
-
-void checkGLError(std::string message) {
-	GLenum error_enum = glGetError();
-	if (GL_NO_ERROR != error_enum) {
-		std::cout << "openGL error: " << error_enum << ": " << message << '\n';
-		exit(1);
-	}
-}
 
 Vec3 getArcballVector(int x, int y) {
 	Vec3 point = Vec3((float)x/SCREEN_WIDTH - 0.5, 0.5 - (float)y/SCREEN_HEIGHT, 0);
@@ -114,55 +102,16 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '2':
-			emitter.setEmissionRate(1);
+			emitter.setEmissionRate(0.3);
 			break;
 
 		case '3':
-			emitter.setEmissionRate(10);
+			emitter.setEmissionRate(1);
 			break;
 	}
 }
 
 void specialKeyboardInput(int key, int x, int y) {
-}
-
-unsigned int loadImage(std::string file, std::string path) {
-	std::string filename = path + file;
-	int width, height, channels;
-	unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, 4);
-	
-	if (data == NULL) {
-		std::cout << "failed to load image " << filename << '\n';
-		exit(1);
-	}
-	
-	// create openGL texture
-	unsigned int texture;
-	glGenTextures(1, &texture);
-
-	checkGLError("could not generate texture");
-	
-	// bind texture for future operations
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	checkGLError("could not bind texture");
-	
-	// give image to openGL
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-	checkGLError("could not give texture to openGL");
-	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	
-	checkGLError("could not bind parameters");
-	
-	glBindTexture(GL_TEXTURE_2D, 0);
-	
-	stbi_image_free(data);
-	return texture;
 }
 
 void initializeScene()
@@ -299,10 +248,11 @@ int main(int argc, char* argv[]) {
 	glutMouseFunc(mouseAction);
 	glutMotionFunc(mouseMotion);
 
-	int tex_handle = loadImage("explosion.png", "textures/");
-	emitter.setTextureAtlas(tex_handle, 12, 5);
-	emitter.setSize(4, 4);
-	// emitter.setColour(Vec3(1, 1, 1), Vec3(1, 1, 1));
+	if (argc != 2) {
+		std::cout << "requires emitter filename\n";
+		return 1;
+	}
+	emitter.loadFromFile(argv[1]);
 
 	initializeScene();
 

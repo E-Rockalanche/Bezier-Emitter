@@ -1,0 +1,10 @@
+# explosion emitter
+min_vel 0
+max_vel 5
+min_lif 2
+max_lif 4
+size1 6
+size2 4
+max 16
+rate 1
+tex textures/explosion.png 12 5
