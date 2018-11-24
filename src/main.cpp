@@ -252,7 +252,11 @@ int main(int argc, char* argv[]) {
 		std::cout << "requires emitter filename\n";
 		return 1;
 	}
-	emitter.loadFromFile(argv[1]);
+	bool ok = emitter.loadFromFile(argv[1]);
+	if (!ok) {
+		std::cout << "failed to load emitter " << argv[1] << '\n';
+		return 1;
+	}
 
 	initializeScene();
 

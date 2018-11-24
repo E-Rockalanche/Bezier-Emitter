@@ -1,0 +1,17 @@
+# waboom
+
+max 16
+rate 4
+tex textures/waboom.png 17 17
+
+vel 0
+min_offset -5 -5 -5
+max_offset 5 5 5
+
+min_dir -1 -1 -1
+max_dir 1 1 1
+
+lif 6
+
+size1 6
+size2 4
