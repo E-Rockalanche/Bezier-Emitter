@@ -14,7 +14,8 @@ CFLAGS := -Wall -Wextra -std=c++17 -c -I./inc
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o obj/emitter.o obj/matrix.o
+$(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o \
+	obj/emitter.o obj/matrix.o load_texture.o parse_path.o
 	$(MAKE_EXE)
 	
 obj/main.o: src/main.cpp inc/vec3.hpp
@@ -36,6 +37,12 @@ obj/matrix.o: src/matrix.cpp inc/matrix.hpp
 	$(MAKE_OBJ)
 
 obj/stb_image.o: src/stb_image.c inc/stb_image.h
+	$(MAKE_OBJ)
+
+obj/load_texture.o: src/load_texture.cpp inc/load_texture.hpp
+	$(MAKE_OBJ)
+
+obj/parse_path.o: src/parse_path.cpp inc/parse_path.hpp
 	$(MAKE_OBJ)
 
 clean:

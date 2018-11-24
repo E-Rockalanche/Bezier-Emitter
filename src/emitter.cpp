@@ -10,12 +10,16 @@
 #include "emitter.hpp"
 #include "path.hpp"
 #include "particle.hpp"
+#include "parse_path.hpp"
+#include "load_texture.hpp"
 
 Emitter::Emitter() {
 	particles.resize(MAX_PARTICLES);
 	num_particles = 0;
 	emission_rate = 0.1;
 	time_since_emission = 0;
+	acceleration_func = NULL;
+	gravity = 0;
 
 	// random initial variables
 
@@ -36,6 +40,16 @@ Emitter::Emitter() {
 	texture_handle = 0;
 	images = 0;
 	h_images = 1;
+}
+
+void Emitter::setVelocity(float min_velocity, float max_velocity) {
+	this->min_velocity = min_velocity;
+	this->max_velocity = max_velocity;
+}
+
+void Emitter::setLifetime(float min_lifetime, float max_lifetime) {
+	this->min_lifetime = min_lifetime;
+	this->max_lifetime = max_lifetime;
 }
 
 void Emitter::setSize(float size1, float size2) {
@@ -64,6 +78,14 @@ void Emitter::setTextureAtlas(int texture_handle, int images, int h_images) {
 	this->texture_handle = texture_handle;
 	this->images = images;
 	this->h_images = h_images;
+}
+
+void Emitter::setGravity(float gravity) {
+	this->gravity = gravity;
+}
+
+void Emitter::setAccelerationFunc(Vec3 (*func)(Vec3)) {
+	acceleration_func = func;
 }
 
 #define LERP(x, y, t) ((x) + (t) * ((y) - (x)))
@@ -113,12 +135,22 @@ void Emitter::update(float time) {
 	path_iterator.update(time);
 	time_since_emission += time;
 
+	Vec3 grav_vec(0, -gravity, 0);
+
 	for(int i = 0; i < num_particles; i++) {
 		Particle& p = particles[i];
-		p.update(time);
-		if (p.isDead()) {
+		p.time += time;
+		if (p.time >= p.lifetime) {
+			// dead particle
 			particles[i] = particles[num_particles - 1];
 			num_particles--;
+		} else {
+			if (acceleration_func) {
+				p.velocity += time * (*acceleration_func)(p.position);
+			} else {
+				p.velocity += time * grav_vec;
+			}
+			position += time * velocity;
 		}
 	}
 
@@ -133,8 +165,48 @@ void Emitter::update(float time) {
 
 		p.position = path_iterator.getPosition();
 		p.velocity = randomRange(min_velocity, max_velocity) * Vec3(x, y, z);
-		p.acceleration = Vec3(0, 0.2, 0);
 		p.lifetime = randomRange(min_lifetime, max_lifetime);
 		p.time = 0;
 	}
+}
+
+bool Emitter::loadFromFile(std::string filename, std::string path){
+	parsePath(filename, filename, path);
+	ifstream fin((path + filename).c_strr());
+	while(!fin.eof() && fin.good()) {
+		std::string var;
+		fin >> var;
+		if (var.size()) {
+			if (var == "min_vel") {
+				fin >> emitter.min_velocity;
+			} else if (var == "max_vel") {
+				fin >> emitter.max_velocity;
+			} else if (var == "min_lif") {
+				fin >> emitter.min_lifetime;
+			} else if (var == "max_lif") {
+				fin >> emitter.max_lifetime;
+			} else if (var == "col1") {
+				fin >> emitter.colour1;
+			} else if (var == "col2") {
+				fin >> emitter.colour2;
+			} else if (var == "size1") {
+				fin >> emitter.size1;
+			} else if (var == "size2") {
+				fin >> emitter.size2;
+			} else if (var == "tex") {
+				std::string tex_filename;
+				fin >> tex_filename >> emitter.images >> emitter.h_images;
+				int handle = loadTexture(tex_filename, path);
+				if (handle == 0) {
+					return false;
+				} else {
+					emitter.texture_handle = handle;
+				}
+			} else {
+				// ignore line
+				std::getline(fin, var);
+			}
+		}
+	}
+	return fin.eof();
 }
