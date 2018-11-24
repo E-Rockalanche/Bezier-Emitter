@@ -1,8 +1,15 @@
 CXX := g++
 TARGET := assignment3
-CFLAGS := -Wall -Wextra -std=c++11 -c -I./inc
-LFLAGS := -lGL -lGLU -lglut -L/usr/lib64 -lstdc++ -lm
-CLEAN := rm obj/*.o $(TARGET)
+
+ifeq ($(OS), windows)
+	LFLAGS := -static -lm -lglut32cu -lglu32 -lopengl32
+	CLEAN := del .\obj\*.o $(TARGET)
+else
+	LFLAGS := -lm -lGL -lGLU -lglut
+	CLEAN := rm ./obj/*.o $(TARGET)
+endif
+
+CFLAGS := -Wall -Wextra -std=c++17 -c -I./inc
 
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)

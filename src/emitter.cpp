@@ -34,8 +34,18 @@ Emitter::Emitter() {
 	size2 = 0.2;
 
 	texture_handle = 0;
+	images = 0;
 	h_images = 1;
-	v_images = 1;
+}
+
+void Emitter::setSize(float size1, float size2) {
+	this->size1 = size1;
+	this->size2 = size2;
+}
+
+void Emitter::setColour(Vec3 colour1, Vec3 colour2) {
+	this->colour1 = colour1;
+	this->colour2 = colour2;
 }
 
 void Emitter::setPath(Path::Iterator it) {
@@ -50,25 +60,27 @@ void Emitter::setEmissionRate(float rate) {
 	emission_rate = rate;
 }
 
-void Emitter::setTextureAtlas(int texture_handle, int h_images, int v_images) {
+void Emitter::setTextureAtlas(int texture_handle, int images, int h_images) {
 	this->texture_handle = texture_handle;
+	this->images = images;
 	this->h_images = h_images;
-	this->v_images = v_images;
 }
 
 #define LERP(x, y, t) ((x) + (t) * ((y) - (x)))
 
-void Emitter::render() {
+void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
+	// top left, top right, bottom right, bottom left
+	static const float quad_x[] = { -0.5, 0.5, 0.5, -0.5 };
+	static const float quad_y[] = { 0.5, 0.5, -0.5, -0.5 };
+
 	glBindTexture(GL_TEXTURE_2D, texture_handle);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	
-	static const float x_signs[] = { -1, 1, 1, -1 };
-	static const float y_signs[] = { 1, 1, -1, -1 };
 
 	glBegin(GL_QUADS);
+	int v_images = images / h_images + (bool)(images % h_images);
 	for(int i = 0; i < num_particles; i++) {
 		const Particle& p = particles[i];
 
@@ -76,22 +88,22 @@ void Emitter::render() {
 		Vec3 colour = LERP(colour1, colour2, t);
 		float size = LERP(size1, size2, t);
 
-		int image_index = t * h_images * v_images;
-		float tex_left = (float)(image_index % h_images) / h_images;
-		float tex_top = (float)(image_index / v_images) / v_images;
+		int image_index = std::max(0, std::min((int)(t * images), images-1));
+		float tex_left = (float)(image_index % h_images) / (float)h_images;
+		float tex_top = (float)(image_index / h_images) / (float)v_images;
 
 		glColor3f(colour.x, colour.y, colour.z);
 		for(int j = 0; j < 4; j++) {
-			float tx = tex_left + (x_signs[j] + 1.0) / 2.0 / h_images;
-			float ty = tex_top + (y_signs[j] + 1.0) / 2.0 / v_images;
+			float tx = tex_left + (quad_x[j] + 0.5) / (float)h_images;
+			float ty = tex_top + (0.5 - quad_y[j]) / (float)v_images;
 			glTexCoord2d(tx, ty);
 
-			float x = p.position.x + size/2.0 * x_signs[j];
-			float y = p.position.y + size/2.0 * y_signs[j];
-			glVertex3f(x, y, p.position.z);
+			Vec3 vertex = p.position + size * (quad_x[j] * camera_right + quad_y[j] * camera_up);
+			glVertex3f(vertex.x, vertex.y, vertex.z);
 		}
 	}
 	glEnd();
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 #define random(value) ((float)(value) * std::rand() / RAND_MAX)
@@ -112,7 +124,7 @@ void Emitter::update(float time) {
 
 	while (time_since_emission >= emission_rate && num_particles < MAX_PARTICLES) {
 		Particle& p = particles[num_particles++];
-		time_since_emission -= emission_rate;
+		time_since_emission = 0;
 
 		float angle = random(2.0 * M_PI);
 		float z = randomRange(-1.0, 1.0);

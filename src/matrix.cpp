@@ -13,16 +13,40 @@ Matrix::Matrix() {
 	}
 }
 
-Matrix Matrix::operator*(const Matrix& other) const {
+Matrix operator*(const Matrix& m1, const Matrix& m2) {
 	Matrix result;
 	for(int i = 0; i < 4; i++) {
 		for(int j = 0; j < 4; j++) {
 			GLfloat sum = 0;
 			for(int k = 0; k < 4; k++) {
-				sum += data[i*4 + k] * other.data[k*4 + j];
+				sum += m1.data[i*4 + k] * m2.data[k*4 + j];
 			}
 			result[i*4 + j] = sum;
 		}
+	}
+	return result;
+}
+
+Vec3 operator*(const Vec3& v, const Matrix& m) {
+	Vec3 result;
+	for(int j = 0; j < 3; j++) {
+		GLfloat sum = 0;
+		for(int k = 0; k < 3; k++) {
+			sum += v[k] * m.data[k*4 + j];
+		}
+		result[j] = sum;
+	}
+	return result;
+}
+
+Vec3 operator*(const Matrix& m, const Vec3& v) {
+	Vec3 result;
+	for(int i = 0; i < 3; i++) {
+		GLfloat sum = 0;
+		for(int k = 0; k < 3; k++) {
+			sum += m.data[i*4 + k] * v[k];
+		}
+		result[i] = sum;
 	}
 	return result;
 }

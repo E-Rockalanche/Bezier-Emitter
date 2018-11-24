@@ -16,7 +16,9 @@ public:
 	Matrix();
 	GLfloat& operator[](int index) { return data[index]; }
 	GLfloat operator[](int index) const { return data[index]; }
-	Matrix operator*(const Matrix& other) const;
+	friend Matrix operator*(const Matrix& m1, const Matrix& m2);
+	friend Vec3 operator*(const Vec3& v, const Matrix& m);
+	friend Vec3 operator*(const Matrix& m, const Vec3& v);
 };
 
 Matrix calcRotationMatrix(float angle, const Vec3& axis);

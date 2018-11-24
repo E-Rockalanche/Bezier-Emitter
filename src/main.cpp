@@ -9,14 +9,18 @@
 #include <GL/glu.h>
 #include "GL/glut.h"
 
+#if(OS == windows)
+	#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
 #include "stb_image.h"
 #include "vec3.hpp"
 #include "path.hpp"
 #include "emitter.hpp"
 #include "matrix.hpp"
 
-#define SCREENWIDTH 512
-#define SCREENHEIGHT 512
+#define SCREEN_WIDTH 512
+#define SCREEN_HEIGHT 512
 
 Path path(Path::CATMULROM);
 bool display_path = false;
@@ -29,9 +33,19 @@ int cur_mpos[2];
 bool arcball_on = false;
 
 Vec3 camera_pos(0, 0, 50);
+Vec3 camera_up(0, 1, 0);
+Vec3 camera_right(1, 0, 0);
+
+void checkGLError(std::string message) {
+	GLenum error_enum = glGetError();
+	if (GL_NO_ERROR != error_enum) {
+		std::cout << "openGL error: " << error_enum << ": " << message << '\n';
+		exit(1);
+	}
+}
 
 Vec3 getArcballVector(int x, int y) {
-	Vec3 point = Vec3((float)x/SCREENWIDTH - 0.5, 0.5 - (float)y/SCREENHEIGHT, 0);
+	Vec3 point = Vec3((float)x/SCREEN_WIDTH - 0.5, 0.5 - (float)y/SCREEN_HEIGHT, 0);
 	
 	float hyp_sqr = point.x*point.x + point.y*point.y;
 	
@@ -56,13 +70,13 @@ void mouseAction(int button, int state, int x, int y) {
 				arcball_on = false;
 			}
 			break;
-			
-		case 3: // mouse wheel up
-			camera_pos[2] -= 1;
+
+		case 3: // scroll up
+			camera_pos /= 1.1;
 			break;
-			
-		case 4: // mouse wheel down
-			camera_pos[2] += 1;
+
+		case 4: // scroll down
+			camera_pos *= 1.1;
 			break;
 			
 		default:
@@ -96,15 +110,15 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '1':
-			emitter.setEmissionRate(0.01);
-			break;
-
-		case '2':
 			emitter.setEmissionRate(0.1);
 			break;
 
+		case '2':
+			emitter.setEmissionRate(1);
+			break;
+
 		case '3':
-			emitter.setEmissionRate(1.0);
+			emitter.setEmissionRate(10);
 			break;
 	}
 }
@@ -114,8 +128,8 @@ void specialKeyboardInput(int key, int x, int y) {
 
 unsigned int loadImage(std::string file, std::string path) {
 	std::string filename = path + file;
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrChannels, 4);
+	int width, height, channels;
+	unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, 4);
 	
 	if (data == NULL) {
 		std::cout << "failed to load image " << filename << '\n';
@@ -125,23 +139,25 @@ unsigned int loadImage(std::string file, std::string path) {
 	// create openGL texture
 	unsigned int texture;
 	glGenTextures(1, &texture);
+
+	checkGLError("could not generate texture");
 	
 	// bind texture for future operations
 	glBindTexture(GL_TEXTURE_2D, texture);
+
+	checkGLError("could not bind texture");
 	
 	// give image to openGL
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+	checkGLError("could not give texture to openGL");
 	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	
-	GLenum error_enum = glGetError();
-	if (GL_NO_ERROR != error_enum) {
-		std::cout << "an openGL error occurred while loading " << filename << '\n';
-		exit(1);
-	}
+	checkGLError("could not bind parameters");
 	
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
@@ -151,11 +167,18 @@ unsigned int loadImage(std::string file, std::string path) {
 
 void initializeScene()
 {
-	glShadeModel( GL_FLAT );
-	// glShadeModel( GL_SMOOTH );
+	// glShadeModel( GL_FLAT );
+	glShadeModel( GL_SMOOTH );
 
-  	glEnable(GL_DEPTH_TEST);
+  	// glEnable(GL_DEPTH_TEST);
   	glEnable(GL_NORMALIZE);
+
+	glDisable(GL_DEPTH_TEST);
+
+	glDepthMask(GL_FALSE);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   	path.addPoint(Vec3(-10, -5, 10));
   	path.addPoint(Vec3(10, -10, 5));
@@ -212,7 +235,7 @@ void renderScene(void) {
 
 	gluLookAt(camera_pos.x, camera_pos.y, camera_pos.z, // Eye position
 			  0, 0, 0, // Lookat position
-  			  0, 1, 0);// Up vector
+  			  camera_up.x, camera_up.y, camera_up.z);// Up vector
 
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity();
@@ -224,17 +247,22 @@ void renderScene(void) {
 			Vec3 m1 = getArcballVector(last_mpos[0], last_mpos[1]);
 			Vec3 m2 = getArcballVector(cur_mpos[0], cur_mpos[1]);
 			float angle = 2 * std::acos(std::min(1.0f, Vec3::dotProduct(m1, m2)));
-			Vec3 axis = Vec3::normalize(Vec3::crossProduct(m1, m2));
-			
+			Vec3 axis = -Vec3::normalize(Vec3::crossProduct(m1, m2) * rotation_matrix);
+
 			Matrix new_rotation = calcRotationMatrix(angle, axis);
 			rotation_matrix = rotation_matrix * new_rotation;
+
+			camera_pos = camera_pos * new_rotation;
+			camera_right = Vec3::normalize(camera_right * new_rotation);
+			camera_up = Vec3::normalize(Vec3::crossProduct(camera_right, -camera_pos));
 			
 			for(int i = 0; i < 2; i++) {
 				last_mpos[i] = cur_mpos[i];
 			}
+
 		}
 
-		glMultMatrixf(rotation_matrix.data);
+		// glMultMatrixf(rotation_matrix.data);
 
 		if (display_path) {
 			renderPath();
@@ -244,7 +272,7 @@ void renderScene(void) {
 	    	renderControlPoints();
 		}
 
-		emitter.render();
+		emitter.render(camera_up, camera_right);
 	}
 
 	glutSwapBuffers();
@@ -253,13 +281,13 @@ void renderScene(void) {
 int main(int argc, char* argv[]) {
 	glutInit(&argc, argv);
 
-	glutInitDisplayMode(GLUT_DEPTH|GLUT_SINGLE|GLUT_RGB);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
 
 	glutInitWindowPosition(100,100);
-	glutInitWindowSize( SCREENWIDTH, SCREENHEIGHT );
+	glutInitWindowSize( SCREEN_WIDTH, SCREEN_HEIGHT );
 	glutCreateWindow("Assignment 3 - Eric Roberts");
 
-	glViewport( 0, 0, SCREENWIDTH, SCREENHEIGHT );
+	glViewport( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT );
 	
 	glEnable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
@@ -270,6 +298,11 @@ int main(int argc, char* argv[]) {
 	glutSpecialFunc(specialKeyboardInput);
 	glutMouseFunc(mouseAction);
 	glutMotionFunc(mouseMotion);
+
+	int tex_handle = loadImage("explosion.png", "textures/");
+	emitter.setTextureAtlas(tex_handle, 12, 5);
+	emitter.setSize(4, 4);
+	// emitter.setColour(Vec3(1, 1, 1), Vec3(1, 1, 1));
 
 	initializeScene();
 

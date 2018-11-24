@@ -7,12 +7,14 @@
 class Emitter {
 public:
 	Emitter();
+	void setSize(float size1, float size2);
+	void setColour(Vec3 colour1, Vec3 colour2);
 	void setPath(Path::Iterator it);
 	void setPathSpeed(float speed);
 	void setEmissionRate(float rate);
-	void render();
+	void render(Vec3 camera_up = Vec3(0, 1, 0), Vec3 camera_right = Vec3(1, 0, 0));
 	void update(float time);
-	void setTextureAtlas(int handle, int h_images, int v_images);
+	void setTextureAtlas(int handle, int images, int h_images);
 
 private:
 	static const int MAX_PARTICLES = 256;
@@ -40,8 +42,8 @@ private:
 	float size2;
 
 	int texture_handle;
+	int images;
 	int h_images;
-	int v_images;
 };
 
 #endif
