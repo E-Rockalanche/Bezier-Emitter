@@ -9,10 +9,6 @@
 #include <GL/glu.h>
 #include "GL/glut.h"
 
-#if(OS == windows)
-	#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-
 #include "stb_image.h"
 #include "vec3.hpp"
 #include "path.hpp"
@@ -35,14 +31,6 @@ bool arcball_on = false;
 Vec3 camera_pos(0, 0, 50);
 Vec3 camera_up(0, 1, 0);
 Vec3 camera_right(1, 0, 0);
-
-void checkGLError(std::string message) {
-	GLenum error_enum = glGetError();
-	if (GL_NO_ERROR != error_enum) {
-		std::cout << "openGL error: " << error_enum << ": " << message << '\n';
-		exit(1);
-	}
-}
 
 Vec3 getArcballVector(int x, int y) {
 	Vec3 point = Vec3((float)x/SCREEN_WIDTH - 0.5, 0.5 - (float)y/SCREEN_HEIGHT, 0);
@@ -114,11 +102,11 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '2':
-			emitter.setEmissionRate(1);
+			emitter.setEmissionRate(0.3);
 			break;
 
 		case '3':
-			emitter.setEmissionRate(10);
+			emitter.setEmissionRate(1);
 			break;
 	}
 }
@@ -260,10 +248,11 @@ int main(int argc, char* argv[]) {
 	glutMouseFunc(mouseAction);
 	glutMotionFunc(mouseMotion);
 
-	int tex_handle = loadImage("explosion.png", "textures/");
-	emitter.setTextureAtlas(tex_handle, 12, 5);
-	emitter.setSize(4, 4);
-	// emitter.setColour(Vec3(1, 1, 1), Vec3(1, 1, 1));
+	if (argc != 2) {
+		std::cout << "requires emitter filename\n";
+		return 1;
+	}
+	emitter.loadFromFile(argv[1]);
 
 	initializeScene();
 

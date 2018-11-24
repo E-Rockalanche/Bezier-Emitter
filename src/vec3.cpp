@@ -59,9 +59,11 @@ Vec3& Vec3::operator/=(float scalar) {
 
 Vec3& Vec3::normalize() {
 	float my_length = length();
-	x /= my_length;
-	y /= my_length;
-	z /= my_length;
+	if (my_length > 0) {
+		x /= my_length;
+		y /= my_length;
+		z /= my_length;
+	}
 	return *this;
 }
 
@@ -90,6 +92,14 @@ Vec3 operator*(const Vec3& v1, const Vec3& v2) {
 }
 
 Vec3 operator*(float scalar, const Vec3& v) {
+	Vec3 result;
+	result.x = v.x * scalar;
+	result.y = v.y * scalar;
+	result.z = v.z * scalar;
+	return result;
+}
+
+Vec3 operator*(const Vec3& v, float scalar) {
 	Vec3 result;
 	result.x = v.x * scalar;
 	result.y = v.y * scalar;

@@ -15,7 +15,7 @@ MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
 $(TARGET): obj/main.o obj/vec3.o obj/stb_image.o obj/path.o obj/lerp.o \
-	obj/emitter.o obj/matrix.o load_texture.o parse_path.o
+	obj/emitter.o obj/matrix.o obj/load_texture.o obj/parse_path.o
 	$(MAKE_EXE)
 	
 obj/main.o: src/main.cpp inc/vec3.hpp
