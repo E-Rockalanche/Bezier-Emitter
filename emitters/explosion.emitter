@@ -2,7 +2,7 @@
 
 max 128
 delay 15
-tex textures/explosion.png 12 5
+tex textures/snes_explosion.png 8 8
 
 min_vel 0.1
 max_vel 0.3
