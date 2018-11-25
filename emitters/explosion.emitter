@@ -1,17 +1,16 @@
 # explosion emitter
 
-max 16
-rate 1
+max 128
+delay 15
 tex textures/explosion.png 12 5
 
-min_vel 0
-max_vel 5
+min_vel 0.1
+max_vel 0.3
 
 min_dir -1 -1 -1
 max_dir 1 1 1
 
-min_lif 2
-max_lif 4
+lif 30
 
 size1 6
 size2 4

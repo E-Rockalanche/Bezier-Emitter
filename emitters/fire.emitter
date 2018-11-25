@@ -1,21 +1,31 @@
 # fire emitter
 
 max 128
-grav 0 0.5 0
-wind -0.5 0 0
+delay 4
+
+grav 0 0.005 0
+
+wind -0.05 0 0
 drag 1
-mass 1
+mass 0.1
 
-rate 1
+vortex_max 8
+vortex_delay 30
 
-min_vel 0.5
-max_vel 2
+min_vortex_angular_vel -2
+max_vortex_angular_vel 2
+
+min_vortex_axis -1 -1 -1
+max_vortex_axis 1 1 1
+
+min_vel 0
+max_vel 0.3
 
 min_dir -1 -1 -1
 max_dir 1 1 1
 
-min_lif 3
-max_lif 10
+min_lif 30
+max_lif 60
 
 col1 1 1 0
 col2 1 0 0

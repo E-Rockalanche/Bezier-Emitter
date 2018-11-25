@@ -100,18 +100,18 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '1':
-			emitter.setEmissionDelay(0.1, 0.2);
-			emitter.setVortexEmissionDelay(1, 2);
+			emitter.setEmissionDelay(0, 5);
+			emitter.setVortexEmissionDelay(0, 20);
 			break;
 
 		case '2':
-			emitter.setEmissionDelay(0.5, 0.6);
-			emitter.setVortexEmissionDelay(5, 6);
+			emitter.setEmissionDelay(5, 10);
+			emitter.setVortexEmissionDelay(20, 40);
 			break;
 
 		case '3':
-			emitter.setEmissionDelay(0.9, 0.1);
-			emitter.setVortexEmissionDelay(9, 10);
+			emitter.setEmissionDelay(10, 20);
+			emitter.setVortexEmissionDelay(40, 80);
 			break;
 	}
 }
@@ -143,7 +143,7 @@ void initializeScene()
   	path.addPoint(Vec3(-10, 10, 5));
 
   	Path::Iterator it = path.begin();
-  	it.setSpeed(0.5);
+  	it.setSpeed(0.05);
   	emitter.setPath(it);
 }
 
@@ -176,9 +176,17 @@ void renderControlPoints() {
 
 // GLUT callback to handle rendering the scene
 void renderScene(void) {
-	static float time_increment = 0.005;
+	static float last_timestamp = 0;
+	float cur_timestamp = glutGet(GLUT_ELAPSED_TIME);
+	float delta_time = 60.0 * (cur_timestamp - last_timestamp) / 1000.0;
 
-	emitter.update(time_increment);
+	/*
+	std::cout << "milliseconds: " << (cur_timestamp - last_timestamp) << '\n';
+	std::cout << "delta_time: " << delta_time << '\n';
+	*/
+
+	last_timestamp = cur_timestamp;
+	emitter.update(delta_time);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

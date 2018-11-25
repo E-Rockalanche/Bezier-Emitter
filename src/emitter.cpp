@@ -150,7 +150,7 @@ void Emitter::drawVortex(const Vortex& v) {
 	glBegin(GL_LINE_STRIP);
 	for(int i = 0; i < segments * loops; ++i) {
 		float theta = 2.0 * M_PI * i / segments;
-		Vec3 vertex = v.position + (i / (2.0 * loops * segments)) * radius * (std::cos(theta) * x_vec + std::sin(theta) * y_vec);
+		Vec3 vertex = v.position + (4.0 * i / (loops * segments)) * radius * (std::cos(theta) * x_vec + std::sin(theta) * y_vec);
 		glVertex3f(vertex.x, vertex.y, vertex.z);
 	}
 	glEnd();
@@ -247,7 +247,7 @@ void Emitter::update(float time) {
 }
 
 void Emitter::updateParticle(Particle& p, float time) {
-	static const float wind_pressure_coef = 0.613;
+	static const float wind_pressure_coef = 0.613 / 60.0;
 
 	if (drag_coef > 0 && mass > 0) {
 		// calculate wind vector
@@ -261,7 +261,7 @@ void Emitter::updateParticle(Particle& p, float time) {
 				float life_factor = (1.0 - t) * t * 4;
 				Vec3 r = p.position - v.position;
 				float scale = life_factor / (1.0 + Vec3::dotProduct(r, r));
-				relative_wind += Vec3::crossProduct(v.angular_velocity, r) * scale + v.velocity - p.velocity;
+				relative_wind += Vec3::crossProduct(v.angular_velocity, r) * scale - p.velocity;
 			}
 		}
 
@@ -278,27 +278,31 @@ void Emitter::updateParticle(Particle& p, float time) {
 }
 
 void Emitter::createParticle() {
-	int index;
-	if (num_particles < (int)particles.size()) {
-		index = num_particles++;
-	} else {
-		// overrite a random particle to make emitter look consistent
-		index = std::rand() % particles.size();
-	}
+	if (particles.size() > 0) {
+		int index;
+		if (num_particles < (int)particles.size()) {
+			index = num_particles++;
+		} else {
+			// overrite a random particle to make emitter look consistent
+			index = std::rand() % particles.size();
+		}
 
-	initializeParticle(particles[index]);
+		initializeParticle(particles[index]);
+	}
 }
 
 void Emitter::createVortex() {
-	int index;
-	if (num_vortices < (int)vortices.size()) {
-		index = num_vortices++;
-	} else {
-		// overrite a random particle to make emitter look consistent
-		index = std::rand() % vortices.size();
-	}
+	if (vortices.size() > 0) {
+		int index;
+		if (num_vortices < (int)vortices.size()) {
+			index = num_vortices++;
+		} else {
+			// overrite a random particle to make emitter look consistent
+			index = std::rand() % vortices.size();
+		}
 
-	initializeVortex(vortices[index]);
+		initializeVortex(vortices[index]);
+	}
 }
 
 void Emitter::initializeParticle(Particle& p) {
