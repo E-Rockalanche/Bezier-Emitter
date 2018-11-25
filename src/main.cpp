@@ -1,9 +1,11 @@
 #define _USE_MATH_DEFINES
 
-#include <math.h>
+#include <cmath>
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <ctime>
+#include <cstdlib>
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -84,7 +86,7 @@ void keyboardInput(unsigned char key, int x, int y) {
 	switch(key) {
 		case 'd':
 			display_path = !display_path;
-			display_control_points = !display_control_points;
+			emitter.setDebugMode(display_path);
 			break;
 
 		case '+':
@@ -98,15 +100,18 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '1':
-			emitter.setEmissionRate(0.1);
+			emitter.setEmissionDelay(0.1, 0.2);
+			emitter.setVortexEmissionDelay(1, 2);
 			break;
 
 		case '2':
-			emitter.setEmissionRate(0.3);
+			emitter.setEmissionDelay(0.5, 0.6);
+			emitter.setVortexEmissionDelay(5, 6);
 			break;
 
 		case '3':
-			emitter.setEmissionRate(1);
+			emitter.setEmissionDelay(0.9, 0.1);
+			emitter.setVortexEmissionDelay(9, 10);
 			break;
 	}
 }
@@ -116,6 +121,8 @@ void specialKeyboardInput(int key, int x, int y) {
 
 void initializeScene()
 {
+	std::srand(std::time(NULL));
+
 	// glShadeModel( GL_FLAT );
 	glShadeModel( GL_SMOOTH );
 
