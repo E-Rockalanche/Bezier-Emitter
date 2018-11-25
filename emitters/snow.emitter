@@ -1,13 +1,14 @@
 # snow emitter
 
 max 128
-rate 1
+delay 1
 
 vortex_max 16
-vortex_rate 8
+vortex_delay 8
 min_vortex_angular_vel -10
 max_vortex_angular_vel 10
-vortex_axis 0 0 1
+min_vortex_axis -1 -1 -1
+max_vortex_axis 1 1 1
 
 grav 0 -0.1 0
 wind -0.2 0 0

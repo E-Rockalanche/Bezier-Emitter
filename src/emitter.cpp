@@ -15,13 +15,16 @@
 
 Emitter::Emitter() {
 	particles.resize(DEFAULT_MAX_PARTICLES);
+
 	num_particles = 0;
-	emission_rate = 0.1;
-	time_since_emission = 0;
+	min_emission_delay = 0;
+	max_emission_delay = 1;
+	emission_timer = 0;
 
 	num_vortices = 0;
-	vortex_emission_rate = 1;
-	time_since_vortex_emission = 0;
+	min_vortex_emission_delay = 0;
+	max_vortex_emission_delay = 1;
+	vortex_emission_timer = 0;
 
 	// environment variables
 
@@ -54,6 +57,26 @@ Emitter::Emitter() {
 
 	size1 = 1;
 	size2 = 1;
+
+	debug = false;
+}
+
+void Emitter::setPath(Path::Iterator it) {
+	path_iterator = it;
+}
+
+void Emitter::setPathSpeed(float speed) {
+	path_iterator.setSpeed(speed);
+}
+
+void Emitter::setEmissionDelay(float min_delay, float max_delay) {
+	min_emission_delay = min_delay;
+	max_emission_delay = max_delay;
+}
+
+void Emitter::setVortexEmissionDelay(float min_delay, float max_delay) {
+	min_vortex_emission_delay = min_delay;
+	max_vortex_emission_delay = max_delay;
 }
 
 void Emitter::setVelocity(float min_velocity, float max_velocity) {
@@ -81,18 +104,6 @@ void Emitter::setColour(Vec3 colour1, Vec3 colour2) {
 	this->colour2 = colour2;
 }
 
-void Emitter::setPath(Path::Iterator it) {
-	path_iterator = it;
-}
-
-void Emitter::setPathSpeed(float speed) {
-	path_iterator.setSpeed(speed);
-}
-
-void Emitter::setEmissionRate(float rate) {
-	emission_rate = rate;
-}
-
 void Emitter::setTextureAtlas(int texture_handle, int images, int h_images) {
 	this->texture_handle = texture_handle;
 	this->images = images;
@@ -112,6 +123,37 @@ void Emitter::setWind(Vec3 wind, float drag, float mass) {
 void Emitter::setSpawnOffset(Vec3 min_offset, Vec3 max_offset) {
 	this->min_offset = min_offset;
 	this->max_offset = max_offset;
+}
+
+void Emitter::setDebugMode(bool debug) {
+	this->debug = debug;
+}
+
+void Emitter::drawVortex(const Vortex& v) {
+	static const int segments = 16;
+	static const int loops = 2;
+
+	float radius = v.angular_velocity.length();
+
+	Vec3 x_vec, y_vec;
+
+	x_vec = Vec3::crossProduct(v.angular_velocity, v.angular_velocity + Vec3(1, 0, 0));
+	x_vec.normalize();
+
+	y_vec = -Vec3::crossProduct(v.angular_velocity, x_vec);
+	y_vec.normalize();
+
+	float t = v.time / v.lifetime;
+	float alpha = (1.0 - t) * t * 4.0;
+
+	glColor4f(1, 0, 0, alpha);
+	glBegin(GL_LINE_STRIP);
+	for(int i = 0; i < segments * loops; ++i) {
+		float theta = 2.0 * M_PI * i / segments;
+		Vec3 vertex = v.position + (i / (2.0 * loops * segments)) * radius * (std::cos(theta) * x_vec + std::sin(theta) * y_vec);
+		glVertex3f(vertex.x, vertex.y, vertex.z);
+	}
+	glEnd();
 }
 
 #define LERP(x, y, t) ((x) + (t) * ((y) - (x)))
@@ -153,6 +195,13 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 	}
 	glEnd();
 	glBindTexture(GL_TEXTURE_2D, 0);
+
+	if (debug) {
+		for(int i = 0; i < num_vortices; ++i) {
+			const Vortex& v = vortices[i];
+			drawVortex(v);
+		}
+	}
 }
 
 #define random(value) (((float)std::rand() / (float)RAND_MAX) * (value))
@@ -161,8 +210,8 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 
 void Emitter::update(float time) {
 	path_iterator.update(time);
-	time_since_emission += time;
-	time_since_vortex_emission += time;
+	emission_timer -= time;
+	vortex_emission_timer -= time;
 
 	for(int i = 0; i < num_vortices; ++i) {
 		Vortex& v = vortices[i];
@@ -186,14 +235,14 @@ void Emitter::update(float time) {
 		}
 	}
 
-	if (time_since_emission >= emission_rate) {
+	if (emission_timer <= 0) {
 		createParticle();
-		time_since_emission = 0;
+		emission_timer = randomRange(min_emission_delay, max_emission_delay);
 	}
 
-	if (time_since_vortex_emission >= vortex_emission_rate) {
+	if (vortex_emission_timer <= 0) {
 		createVortex();
-		time_since_vortex_emission = 0;
+		vortex_emission_timer = randomRange(min_vortex_emission_delay, max_vortex_emission_delay);
 	}
 }
 
@@ -202,22 +251,26 @@ void Emitter::updateParticle(Particle& p, float time) {
 
 	if (drag_coef > 0 && mass > 0) {
 		// calculate wind vector
-		Vec3 cur_wind = wind - p.velocity;
+		Vec3 relative_wind = wind - p.velocity;
+		
 		for(int i = 0; i < num_vortices; ++i) {
 			const Vortex& v = vortices[i];
-			Vec3 d = p.position - v.position;
-			float t = v.time / v.lifetime;
-			float factor = (1.0 - t) * t * 4;
-			float scale = factor / (1.0 + Vec3::dotProduct(d, d));
-			cur_wind += Vec3::crossProduct(v.angular_velocity, d) * scale + v.velocity - p.velocity;
+			if (&p != (Particle*)&v) {
+				// add vortex wind
+				float t = v.time / v.lifetime;
+				float life_factor = (1.0 - t) * t * 4;
+				Vec3 r = p.position - v.position;
+				float scale = life_factor / (1.0 + Vec3::dotProduct(r, r));
+				relative_wind += Vec3::crossProduct(v.angular_velocity, r) * scale + v.velocity - p.velocity;
+			}
 		}
 
 		// calculate wind force
-		float pressure = wind_pressure_coef * Vec3::dotProduct(cur_wind, cur_wind);
+		float pressure = wind_pressure_coef * Vec3::dotProduct(relative_wind, relative_wind);
 		float cur_size = size1 + p.time/p.lifetime * (size2 - size1);
 		float wind_force = sqr(cur_size) * pressure * drag_coef;
 
-		p.velocity += time * wind_force / mass * cur_wind.normalize();
+		p.velocity += time * wind_force / mass * relative_wind.normalize();
 	}
 
 	p.velocity += time * gravity;
@@ -270,8 +323,11 @@ void Emitter::initializeVortex(Vortex& v) {
 	for(int i = 0; i < 3; ++i) {
 		axis[i] = randomRange(min_vortex_axis[i], max_vortex_axis[i]);
 	}
+	axis.normalize();
+
 	float angular_velocity = randomRange(min_vortex_angular_velocity, max_vortex_angular_velocity);
-	v.angular_velocity = angular_velocity * axis.normalize();
+	
+	v.angular_velocity = angular_velocity * axis;
 }
 
 bool Emitter::loadFromFile(std::string filename, std::string path){
@@ -289,7 +345,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_velocity;
 			} else if (var == "max_vel") {
 				fin >> max_velocity;
-			} else if (var == "dir") {
+			}
+
+			else if (var == "dir") {
 				Vec3 direction;
 				fin >> direction;
 				min_direction = max_direction = direction;
@@ -297,7 +355,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_direction;
 			} else if (var == "max_dir") {
 				fin >> max_direction;
-			} else if (var == "offset") {
+			}
+
+			else if (var == "offset") {
 				Vec3 offset;
 				fin >> offset;
 				min_offset = max_offset = offset;
@@ -305,7 +365,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_offset;
 			} else if (var == "max_offset") {
 				fin >> max_offset;
-			} else if (var == "lif") {
+			}
+
+			else if (var == "lif") {
 				float lifetime;
 				fin >> lifetime;
 				min_lifetime = max_lifetime = lifetime;
@@ -313,7 +375,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_lifetime;
 			} else if (var == "max_lif") {
 				fin >> max_lifetime;
-			} else if (var == "col") {
+			}
+
+			else if (var == "col") {
 				Vec3 colour;
 				fin >> colour;
 				colour1 = colour2 = colour;
@@ -321,7 +385,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> colour1;
 			} else if (var == "col2") {
 				fin >> colour2;
-			} else if (var == "size") {
+			}
+
+			else if (var == "size") {
 				float size;
 				fin >> size;
 				size1 = size2 = size;
@@ -329,15 +395,21 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> size1;
 			} else if (var == "size2") {
 				fin >> size2;
-			} else if (var == "grav") {
+			}
+
+			else if (var == "grav") {
 				fin >> gravity;
-			} else if (var == "wind") {
+			}
+
+			else if (var == "wind") {
 				fin >> wind;
 			} else if (var == "drag") {
 				fin >> drag_coef;
 			} else if (var == "mass") {
 				fin >> mass;
-			} else if (var == "vortex_axis") {
+			}
+
+			else if (var == "vortex_axis") {
 				Vec3 axis;
 				fin >> axis;
 				min_vortex_axis = max_vortex_axis = axis;
@@ -345,7 +417,9 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_vortex_axis;
 			} else if (var == "max_vortex_axis") {
 				fin >> max_vortex_axis;
-			} else if (var == "vortex_angular_vel") {
+			}
+
+			else if (var == "vortex_angular_vel") {
 				float vel;
 				fin >> vel;
 				min_vortex_angular_velocity = max_vortex_angular_velocity = vel;
@@ -353,19 +427,41 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> min_vortex_angular_velocity;
 			} else if (var == "max_vortex_angular_vel") {
 				fin >> max_vortex_angular_velocity;
-			} else if (var == "rate") {
-				fin >> emission_rate;
-			} else if (var == "vortex_rate") {
-				fin >> vortex_emission_rate;
-			} else if (var == "max") {
+			}
+
+			else if (var == "delay") {
+				float delay;
+				fin >> delay;
+				min_emission_delay = max_emission_delay = delay;
+			} else if (var == "min_delay") {
+				fin >> min_emission_delay;
+			} else if (var == "max_delay") {
+				fin >> max_emission_delay;
+			}
+
+			else if (var == "vortex_delay") {
+				float delay;
+				fin >> delay;
+				min_vortex_emission_delay = max_vortex_emission_delay = delay;
+			} else if (var == "min_vortex_delay") {
+				fin >> min_vortex_emission_delay;
+			} else if (var == "max_vortex_delay") {
+				fin >> max_vortex_emission_delay;
+			}
+
+			else if (var == "max") {
 				int max_particles;
 				fin >> max_particles;
 				particles.resize(max_particles);
-			} else if (var == "vortex_max") {
+			}
+
+			else if (var == "vortex_max") {
 				int max_vortices;
 				fin >> max_vortices;
 				vortices.resize(max_vortices);
-			} else if (var == "tex") {
+			}
+
+			else if (var == "tex") {
 				std::string tex_filename;
 				fin >> tex_filename >> images >> h_images;
 				int handle = loadTexture(tex_filename, path);
@@ -374,7 +470,8 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				} else {
 					texture_handle = handle;
 				}
-			} else {
+			}
+			else {
 				// ignore line
 				if (var[0] != '#') {
 					std::cout << "warning: unknown token '" << var << "'\n";
