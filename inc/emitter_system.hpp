@@ -32,6 +32,8 @@ public:
 private:
 	std::vector<Emitter*> emitters;
 	std::vector<Vortex> vortices;
+
+	void drawVortex(const Vortex& v);
 };
 
 #endif

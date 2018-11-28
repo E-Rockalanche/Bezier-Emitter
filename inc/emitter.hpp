@@ -38,7 +38,9 @@ public:
 	void setDrag(float drag);
 
 protected:
-	float rate;
+	static const float wind_pressure_coef = 0.613 / 60.0;
+
+	float emission_rate;
 	float time_since_emission;
 	int min_multiple, max_multiple;
 
@@ -56,6 +58,7 @@ protected:
 	Vec3 min_direction, max_direction;
 	Vec3 particle_gravity;
 	float min_velocity, max_velocity;
+	float min_lifetime, max_lifetime;
 
 	bool debug;
 };

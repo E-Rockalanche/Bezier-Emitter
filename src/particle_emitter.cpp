@@ -17,81 +17,23 @@ Emitter::Emitter() {
 	particles.resize(DEFAULT_MAX_PARTICLES);
 
 	num_particles = 0;
-	min_emission_delay = 0;
-	max_emission_delay = 1;
-	emission_timer = 0;
 
-	num_vortices = 0;
-	min_vortex_emission_delay = 0;
-	max_vortex_emission_delay = 1;
-	vortex_emission_timer = 0;
-
-	// environment variables
-
-	gravity = Vec3(0, 0, 0);
-	wind = Vec3(0, 0, 0);
-	drag_coef = 0;
+	vortex_rate = 1.0;
+	time_since_vortex = 0.0;
 
 	texture_handle = 0;
 	images = 0;
 	h_images = 1;
 
-	// random initial variables
+	colour1 = Vec3(1.0, 1.0, 1.0);
+	colour2 = Vec3(1.0, 1.0, 1.0);
 
-	min_offset = Vec3(0, 0, 0);
-	max_offset = Vec3(0, 0, 0);
-
-	min_velocity = 0;
-	max_velocity = 0;
-
-	min_direction = Vec3(0, 0, 0);
-	max_direction = Vec3(0, 0, 0);
-
-	min_lifetime = 1;
-	max_lifetime = 1;
-
-	// interpolated variables
-
-	colour1 = Vec3(1, 1, 1);
-	colour2 = Vec3(1, 1, 1);
-
-	size1 = 1;
-	size2 = 1;
-
-	debug = false;
+	size1 = 1.0;
+	size2 = 1.0;
 }
 
-void Emitter::setPath(Path::Iterator it) {
-	path_iterator = it;
-}
-
-void Emitter::setPathSpeed(float speed) {
-	path_iterator.setSpeed(speed);
-}
-
-void Emitter::setEmissionDelay(float min_delay, float max_delay) {
-	min_emission_delay = min_delay;
-	max_emission_delay = max_delay;
-}
-
-void Emitter::setVortexEmissionDelay(float min_delay, float max_delay) {
-	min_vortex_emission_delay = min_delay;
-	max_vortex_emission_delay = max_delay;
-}
-
-void Emitter::setVelocity(float min_velocity, float max_velocity) {
-	this->min_velocity = min_velocity;
-	this->max_velocity = max_velocity;
-}
-
-void Emitter::setDirection(Vec3 min_direction, Vec3 max_direction) {
-	this->min_direction = min_direction;
-	this->max_direction = max_direction;
-}
-
-void Emitter::setLifetime(float min_lifetime, float max_lifetime) {
-	this->min_lifetime = min_lifetime;
-	this->max_lifetime = max_lifetime;
+void Emitter::setVortexRate(float rate) {
+	vortex_rate = rate;
 }
 
 void Emitter::setSize(float size1, float size2) {
@@ -108,52 +50,6 @@ void Emitter::setTextureAtlas(int texture_handle, int images, int h_images) {
 	this->texture_handle = texture_handle;
 	this->images = images;
 	this->h_images = std::max(1, h_images);
-}
-
-void Emitter::setGravity(Vec3 gravity) {
-	this->gravity = gravity;
-}
-
-void Emitter::setWind(Vec3 wind, float drag, float mass) {
-	this->wind = wind;
-	drag_coef = drag;
-	this->mass = mass;
-}
-
-void Emitter::setSpawnOffset(Vec3 min_offset, Vec3 max_offset) {
-	this->min_offset = min_offset;
-	this->max_offset = max_offset;
-}
-
-void Emitter::setDebugMode(bool debug) {
-	this->debug = debug;
-}
-
-void Emitter::drawVortex(const Vortex& v) {
-	static const int segments = 16;
-	static const int loops = 2;
-
-	float radius = v.angular_velocity.length();
-
-	Vec3 x_vec, y_vec;
-
-	x_vec = Vec3::crossProduct(v.angular_velocity, v.angular_velocity + Vec3(1, 0, 0));
-	x_vec.normalize();
-
-	y_vec = -Vec3::crossProduct(v.angular_velocity, x_vec);
-	y_vec.normalize();
-
-	float t = v.time / v.lifetime;
-	float alpha = (1.0 - t) * t * 4.0;
-
-	glColor4f(1, 0, 0, alpha);
-	glBegin(GL_LINE_STRIP);
-	for(int i = 0; i < segments * loops; ++i) {
-		float theta = 2.0 * M_PI * i / segments;
-		Vec3 vertex = v.position + (4.0 * i / (loops * segments)) * radius * (std::cos(theta) * x_vec + std::sin(theta) * y_vec);
-		glVertex3f(vertex.x, vertex.y, vertex.z);
-	}
-	glEnd();
 }
 
 #define LERP(x, y, t) ((x) + (t) * ((y) - (x)))
@@ -195,13 +91,6 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 	}
 	glEnd();
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	if (debug) {
-		for(int i = 0; i < num_vortices; ++i) {
-			const Vortex& v = vortices[i];
-			drawVortex(v);
-		}
-	}
 }
 
 #define random(value) (((float)std::rand() / (float)RAND_MAX) * (value))
@@ -210,19 +99,7 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 
 void Emitter::update(float time) {
 	path_iterator.update(time);
-	emission_timer -= time;
-	vortex_emission_timer -= time;
-
-	for(int i = 0; i < num_vortices; ++i) {
-		Vortex& v = vortices[i];
-		v.time += time;
-		if (v.isDead()) {
-			vortices[i] = vortices[--num_vortices];
-			--i;
-		} else {
-			updateParticle(v, time);
-		}
-	}
+	time_since_emission += time;
 
 	for(int i = 0; i < num_particles; ++i) {
 		Particle& p = particles[i];
@@ -235,19 +112,13 @@ void Emitter::update(float time) {
 		}
 	}
 
-	if (emission_timer <= 0) {
+	if (time_since_emission >= 1.0/emission_rate) {
 		createParticle();
-		emission_timer = randomRange(min_emission_delay, max_emission_delay);
-	}
-
-	if (vortex_emission_timer <= 0) {
-		createVortex();
-		vortex_emission_timer = randomRange(min_vortex_emission_delay, max_vortex_emission_delay);
+		time_since_emission -= 1.0/emission_rate;
 	}
 }
 
-void Emitter::updateParticle(Particle& p, float time) {
-	static const float wind_pressure_coef = 0.613 / 60.0;
+void Emitter::applyWind(Vec3 wind) {
 
 	if (drag_coef > 0 && mass > 0) {
 		// calculate wind vector
@@ -272,6 +143,9 @@ void Emitter::updateParticle(Particle& p, float time) {
 
 		p.velocity += time * wind_force / mass * relative_wind.normalize();
 	}
+}
+
+void Emitter::updateParticle(Particle& p, float time) {
 
 	p.velocity += time * gravity;
 	p.position += time * p.velocity;
