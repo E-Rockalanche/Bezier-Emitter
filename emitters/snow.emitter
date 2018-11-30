@@ -10,14 +10,15 @@ max_vortex_angular_vel 2
 min_vortex_axis -1 -1 -1
 max_vortex_axis 1 1 1
 
-grav 0 -0.001 0
+grav 0 -0.005 0
 wind -0.1 0 0
 drag 1
 mass 0.01
 
 lif 120
 
-size 0.2
+size1 0.4
+size2 0.1
 
 col 1 1 1
 

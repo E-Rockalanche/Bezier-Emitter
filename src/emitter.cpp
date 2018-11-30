@@ -163,11 +163,13 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 	static const float quad_x[] = { -0.5, 0.5, 0.5, -0.5 };
 	static const float quad_y[] = { 0.5, 0.5, -0.5, -0.5 };
 
-	glBindTexture(GL_TEXTURE_2D, texture_handle);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	if (texture_handle) {
+		glBindTexture(GL_TEXTURE_2D, texture_handle);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	}
 
 	glBegin(GL_QUADS);
 	int v_images = images / h_images + (bool)(images % h_images);
@@ -179,15 +181,22 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 		Vec3 colour = LERP(colour1, colour2, t);
 		float size = LERP(size1, size2, t);
 
-		int image_index = std::max(0, std::min((int)(t * images), images-1));
-		float tex_left = (float)(image_index % h_images) / (float)h_images;
-		float tex_top = (float)(image_index / h_images) / (float)v_images;
+		int image_index;
+		float tex_left, tex_top;
+
+		if (texture_handle) {
+			image_index = std::max(0, std::min((int)(t * images), images-1));
+			tex_left = (float)(image_index % h_images) / (float)h_images;
+			tex_top = (float)(image_index / h_images) / (float)v_images;
+		}
 
 		glColor3f(colour.x, colour.y, colour.z);
 		for(int j = 0; j < 4; ++j) {
-			float tx = tex_left + (quad_x[j] + 0.5) / (float)h_images;
-			float ty = tex_top + (0.5 - quad_y[j]) / (float)v_images;
-			glTexCoord2d(tx, ty);
+			if (texture_handle) {
+				float tx = tex_left + (quad_x[j] + 0.5) / (float)h_images;
+				float ty = tex_top + (0.5 - quad_y[j]) / (float)v_images;
+				glTexCoord2d(tx, ty);
+			}
 
 			Vec3 vertex = p.position + size * (quad_x[j] * camera_right + quad_y[j] * camera_up);
 			glVertex3f(vertex.x, vertex.y, vertex.z);
@@ -244,6 +253,8 @@ void Emitter::update(float time) {
 		createVortex();
 		vortex_emission_timer = randomRange(min_vortex_emission_delay, max_vortex_emission_delay);
 	}
+
+	std::cout << "particles: " << num_particles << " / " << particles.size() << '\n';
 }
 
 void Emitter::updateParticle(Particle& p, float time) {
@@ -278,30 +289,14 @@ void Emitter::updateParticle(Particle& p, float time) {
 }
 
 void Emitter::createParticle() {
-	if (particles.size() > 0) {
-		int index;
-		if (num_particles < (int)particles.size()) {
-			index = num_particles++;
-		} else {
-			// overrite a random particle to make emitter look consistent
-			index = std::rand() % particles.size();
-		}
-
-		initializeParticle(particles[index]);
+	if (num_particles < (int)particles.size()) {
+		initializeParticle(particles[num_particles++]);
 	}
 }
 
 void Emitter::createVortex() {
-	if (vortices.size() > 0) {
-		int index;
-		if (num_vortices < (int)vortices.size()) {
-			index = num_vortices++;
-		} else {
-			// overrite a random particle to make emitter look consistent
-			index = std::rand() % vortices.size();
-		}
-
-		initializeVortex(vortices[index]);
+	if (num_vortices < (int)vortices.size()) {
+		initializeVortex(vortices[num_vortices++]);
 	}
 }
 

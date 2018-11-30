@@ -100,18 +100,18 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '1':
-			emitter.setEmissionDelay(0, 5);
-			emitter.setVortexEmissionDelay(0, 20);
-			break;
-
-		case '2':
-			emitter.setEmissionDelay(5, 10);
+			emitter.setEmissionDelay(0, 0.1);
 			emitter.setVortexEmissionDelay(20, 40);
 			break;
 
+		case '2':
+			emitter.setEmissionDelay(0, 5);
+			emitter.setVortexEmissionDelay(40, 60);
+			break;
+
 		case '3':
-			emitter.setEmissionDelay(10, 20);
-			emitter.setVortexEmissionDelay(40, 80);
+			emitter.setEmissionDelay(0, 10);
+			emitter.setVortexEmissionDelay(60, 80);
 			break;
 	}
 }
