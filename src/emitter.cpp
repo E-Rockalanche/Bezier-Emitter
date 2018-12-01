@@ -289,8 +289,14 @@ void Emitter::updateParticle(Particle& p, float time) {
 }
 
 void Emitter::createParticle() {
-	if (num_particles < (int)particles.size()) {
-		initializeParticle(particles[num_particles++]);
+	if (particles.size()) {
+		int index;
+		if (num_particles < (int)particles.size()) {
+			index = num_particles++;
+		} else {
+			index = rand() % particles.size();
+		}
+		initializeParticle(particles[index]);
 	}
 }
 

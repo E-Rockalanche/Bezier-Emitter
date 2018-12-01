@@ -5,8 +5,10 @@ delay 10
 
 vortex_max 16
 vortex_delay 30
+
 min_vortex_angular_vel -2
 max_vortex_angular_vel 2
+
 min_vortex_axis -1 -1 -1
 max_vortex_axis 1 1 1
 
