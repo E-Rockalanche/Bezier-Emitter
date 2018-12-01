@@ -10,7 +10,7 @@ max_vel 0.3
 min_dir -1 -1 -1
 max_dir 1 1 1
 
-lif 30
+life 30
 
 size1 6
 size2 4

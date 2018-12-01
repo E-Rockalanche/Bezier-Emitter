@@ -18,6 +18,7 @@ some emitters are pre-defined. For example:
 ./assignment3 ./emitters/snow.emitter
 ./assignment3 ./emitters/explosion.emitter
 ./assignment3 ./emitters/fire.emitter
+./assignment3 ./emitters/waboom.emitter
 ```
 
 ## Emitter file
@@ -29,7 +30,7 @@ emitter files define how the particles should move and animate. Many parameters 
 | vel | float | yes | initial velocity of particle |
 | dir | Vec3 | yes | initial direction of particle |
 | offset | Vec3 | yes | offset of initial position from emitter |
-| lif | float | yes | lifetime of particle |
+| life | float | yes | lifetime of particle |
 | col | Vec3 | yes | colour of particle |
 | size | float | yes | size of particle |
 | grav | Vec3 | no | gravity of system |

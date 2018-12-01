@@ -130,22 +130,23 @@ void Emitter::setDebugMode(bool debug) {
 }
 
 void Emitter::drawVortex(const Vortex& v) {
-	static const int segments = 16;
+	static const int segments = 32;
 	static const int loops = 2;
 
 	float radius = v.angular_velocity.length();
 
+	// build orthogonal basis to angular velocity of vortex
 	Vec3 x_vec, y_vec;
-
 	x_vec = Vec3::crossProduct(v.angular_velocity, v.angular_velocity + Vec3(1, 0, 0));
 	x_vec.normalize();
-
 	y_vec = -Vec3::crossProduct(v.angular_velocity, x_vec);
 	y_vec.normalize();
 
+	// set alpha as factor of lifespan
 	float t = v.time / v.lifetime;
 	float alpha = (1.0 - t) * t * 4.0;
 
+	// draw swirl
 	glColor4f(1, 0, 0, alpha);
 	glBegin(GL_LINE_STRIP);
 	for(int i = 0; i < segments * loops; ++i) {
@@ -178,6 +179,8 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 		const Particle& p = particles[i];
 
 		float t = p.time / p.lifetime;
+
+		// calculate interpolated values
 		Vec3 colour = LERP(colour1, colour2, t);
 		float size = LERP(size1, size2, t);
 
@@ -190,6 +193,7 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 			tex_top = (float)(image_index / h_images) / (float)v_images;
 		}
 
+		// draw quad
 		glColor3f(colour.x, colour.y, colour.z);
 		for(int j = 0; j < 4; ++j) {
 			if (texture_handle) {
@@ -218,29 +222,26 @@ void Emitter::render(Vec3 camera_up, Vec3 camera_right) {
 #define sqr(value) ((value) * (value))
 
 void Emitter::update(float time) {
+	// update emitter
 	path_iterator.update(time);
 	emission_timer -= time;
 	vortex_emission_timer -= time;
 
 	for(int i = 0; i < num_vortices; ++i) {
 		Vortex& v = vortices[i];
-		v.time += time;
+		updateParticle(v, time);
 		if (v.isDead()) {
 			vortices[i] = vortices[--num_vortices];
 			--i;
-		} else {
-			updateParticle(v, time);
 		}
 	}
 
 	for(int i = 0; i < num_particles; ++i) {
 		Particle& p = particles[i];
-		p.time += time;
+		updateParticle(p, time);
 		if (p.isDead()) {
 			particles[i] = particles[--num_particles];
 			--i;
-		} else {
-			updateParticle(p, time);
 		}
 	}
 
@@ -253,39 +254,40 @@ void Emitter::update(float time) {
 		createVortex();
 		vortex_emission_timer = randomRange(min_vortex_emission_delay, max_vortex_emission_delay);
 	}
-
-	std::cout << "particles: " << num_particles << " / " << particles.size() << '\n';
 }
 
 void Emitter::updateParticle(Particle& p, float time) {
 	static const float wind_pressure_coef = 0.613 / 60.0;
+	p.time += time;
 
-	if (drag_coef > 0 && mass > 0) {
-		// calculate wind vector
-		Vec3 relative_wind = wind - p.velocity;
-		
-		for(int i = 0; i < num_vortices; ++i) {
-			const Vortex& v = vortices[i];
-			if (&p != (Particle*)&v) {
-				// add vortex wind
-				float t = v.time / v.lifetime;
-				float life_factor = (1.0 - t) * t * 4;
-				Vec3 r = p.position - v.position;
-				float scale = life_factor / (1.0 + Vec3::dotProduct(r, r));
-				relative_wind += Vec3::crossProduct(v.angular_velocity, r) * scale - p.velocity;
+	if (p.time < p.lifetime) {
+		if (drag_coef > 0 && mass > 0) {
+			// calculate wind vector
+			Vec3 relative_wind = wind - p.velocity;
+			
+			for(int i = 0; i < num_vortices; ++i) {
+				const Vortex& v = vortices[i];
+				if (&p != (Particle*)&v) {
+					// add vortex wind
+					float t = v.time / v.lifetime;
+					float life_factor = (1.0 - t) * t * 4;
+					Vec3 r = p.position - v.position;
+					float scale = life_factor / (1.0 + Vec3::dotProduct(r, r));
+					relative_wind += Vec3::crossProduct(v.angular_velocity, r) * scale - p.velocity;
+				}
 			}
+
+			// calculate wind force
+			float pressure = wind_pressure_coef * Vec3::dotProduct(relative_wind, relative_wind);
+			float cur_size = size1 + p.time/p.lifetime * (size2 - size1);
+			float wind_force = sqr(cur_size) * pressure * drag_coef;
+
+			p.velocity += time * wind_force / mass * relative_wind.normalize();
 		}
 
-		// calculate wind force
-		float pressure = wind_pressure_coef * Vec3::dotProduct(relative_wind, relative_wind);
-		float cur_size = size1 + p.time/p.lifetime * (size2 - size1);
-		float wind_force = sqr(cur_size) * pressure * drag_coef;
-
-		p.velocity += time * wind_force / mass * relative_wind.normalize();
+		p.velocity += time * gravity;
+		p.position += time * p.velocity;
 	}
-
-	p.velocity += time * gravity;
-	p.position += time * p.velocity;
 }
 
 void Emitter::createParticle() {
@@ -294,6 +296,7 @@ void Emitter::createParticle() {
 		if (num_particles < (int)particles.size()) {
 			index = num_particles++;
 		} else {
+			// std::cout << "warning: particles at max capacity: " << particles.size() << "\n";
 			index = rand() % particles.size();
 		}
 		initializeParticle(particles[index]);
@@ -303,6 +306,8 @@ void Emitter::createParticle() {
 void Emitter::createVortex() {
 	if (num_vortices < (int)vortices.size()) {
 		initializeVortex(vortices[num_vortices++]);
+	} else if (vortices.size()) {
+		// std::cout << "warning: vortices at max capacity: " << vortices.size() << "\n";
 	}
 }
 
@@ -372,13 +377,13 @@ bool Emitter::loadFromFile(std::string filename, std::string path){
 				fin >> max_offset;
 			}
 
-			else if (var == "lif") {
+			else if (var == "life") {
 				float lifetime;
 				fin >> lifetime;
 				min_lifetime = max_lifetime = lifetime;
-			} else if (var == "min_lif") {
+			} else if (var == "min_life") {
 				fin >> min_lifetime;
-			} else if (var == "max_lif") {
+			} else if (var == "max_life") {
 				fin >> max_lifetime;
 			}
 

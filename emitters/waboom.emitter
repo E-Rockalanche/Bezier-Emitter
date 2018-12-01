@@ -1,7 +1,8 @@
 # waboom
 
 max 16
-rate 4
+min_delay 20
+max_delay 40
 tex textures/waboom.png 17 17
 
 vel 0
@@ -11,7 +12,7 @@ max_offset 5 5 5
 min_dir -1 -1 -1
 max_dir 1 1 1
 
-lif 6
+life 40
 
 size1 6
 size2 4

@@ -100,7 +100,7 @@ void keyboardInput(unsigned char key, int x, int y) {
 			break;
 
 		case '1':
-			emitter.setEmissionDelay(0, 0.1);
+			emitter.setEmissionDelay(0, 0.2);
 			emitter.setVortexEmissionDelay(20, 40);
 			break;
 
